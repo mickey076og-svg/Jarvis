@@ -1,0 +1,94 @@
+name: Build GHOST JARVIS APK AUTO
+on: [push, workflow_dispatch]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+      - uses: android-actions/setup-android@v3
+      - name: AUTO-CREATE JARVIS
+        run: |
+          rm -rf app build.gradle settings.gradle gradle
+          mkdir -p app/src/main/java/com/ghostjarvis/ai
+          mkdir -p gradle/wrapper
+          echo "include ':app'" > settings.gradle
+          cat > build.gradle <<'EEOF'
+          buildscript {
+              repositories { google(); mavenCentral() }
+              dependencies { classpath 'com.android.tools.build:gradle:8.1.0' }
+          }
+          allprojects { repositories { google(); mavenCentral() } }
+          EEOF
+          cat > app/build.gradle <<'EEOF'
+          plugins { id 'com.android.application' }
+          android {
+              namespace 'com.ghostjarvis.ai'
+              compileSdk 34
+              defaultConfig { applicationId "com.ghostjarvis.ai"; minSdk 24; targetSdk 34; versionCode 1; versionName "1.0" }
+          }
+          dependencies { implementation 'androidx.appcompat:appcompat:1.6.1' }
+          EEOF
+          cat > gradle/wrapper/gradle-wrapper.properties <<'EEOF'
+          distributionBase=GRADLE_USER_HOME
+          distributionPath=wrapper/dists
+          distributionUrl=https\://services.gradle.org/distributions/gradle-8.0-bin.zip
+          zipStoreBase=GRADLE_USER_HOME
+          zipStorePath=wrapper/dists
+          EEOF
+          cat > app/src/main/AndroidManifest.xml <<'EEOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+              <uses-permission android:name="android.permission.INTERNET"/>
+              <uses-permission android:name="android.permission.CALL_PHONE"/>
+              <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"/>
+              <application android:allowBackup="true" android:label="GHOST JARVIS" android:theme="@android:style/Theme.NoTitleBar.Fullscreen">
+                  <activity android:name=".MainActivity" android:exported="true">
+                      <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          EEOF
+          cat > app/src/main/java/com/ghostjarvis/ai/MainActivity.java <<'EEOF'
+          package com.ghostjarvis.ai; import android.content.*; import android.content.pm.*; import android.media.*; import android.net.Uri; import android.os.Bundle; import android.speech.*; import android.speech.tts.TextToSpeech; import android.widget.*; import androidx.appcompat.app.AppCompatActivity;
+          public class MainActivity extends AppCompatActivity {
+              TextToSpeech tts; TextView log;
+              protected void onCreate(Bundle b){
+                  super.onCreate(b);
+                  LinearLayout lay=new LinearLayout(this); lay.setOrientation(LinearLayout.VERTICAL); lay.setPadding(40,60,40,40); lay.setBackgroundColor(0xFF0D1117);
+                  TextView tv=new TextView(this); tv.setText("GHOST JARVIS\nONLINE\nTap to Speak"); tv.setTextSize(28); tv.setTextColor(0xFF00FF88); tv.setGravity(1); lay.addView(tv);
+                  log=new TextView(this); log.setText("Commands: Open YouTube, WhatsApp, Volume up, Search anything"); log.setTextColor(-1); lay.addView(log);
+                  Button btn=new Button(this); btn.setText("TAP TO SPEAK TO JARVIS"); lay.addView(btn); setContentView(lay);
+                  tts=new TextToSpeech(this,s->{ if(s==TextToSpeech.SUCCESS){ tts.setLanguage(new java.util.Locale("it","IT")); speak("Ciao boss, Jarvis online!"); }});
+                  btn.setOnClickListener(v->{ Intent i=new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH); i.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM); startActivityForResult(i,100); });
+              }
+              protected void onActivityResult(int a,int b,Intent d){ if(a==100&&b==RESULT_OK){ String c=d.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS).get(0).toLowerCase(); log.setText("You: "+c); handle(c); }}
+              void handle(String c){
+                  try{
+                      if(c.contains("youtube")) open("youtube","https://youtube.com");
+                      else if(c.contains("whatsapp")) open("whatsapp","https://whatsapp.com");
+                      else if(c.contains("tiktok")) open("tiktok","https://tiktok.com");
+                      else if(c.contains("volume up")){ AudioManager am=(AudioManager)getSystemService(AUDIO_SERVICE); am.adjustVolume(1,1); speak("Volume up"); }
+                      else if(c.contains("open")){ String app=c.replace("open","").trim(); if(!open(app,"")) search(c); }
+                      else search(c);
+                  }catch(Exception e){ log.setText(e.getMessage()); }
+              }
+              boolean open(String k,String web){ PackageManager pm=getPackageManager(); for(ApplicationInfo ai: pm.getInstalledApplications(0)){ String label=ai.loadLabel(pm).toString().toLowerCase(); if(label.contains(k)){ Intent i=pm.getLaunchIntentForPackage(ai.packageName); if(i!=null){ startActivity(i); speak("Opening "+label); return true; } } } if(!web.isEmpty()) startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(web))); return false; }
+              void search(String q){ speak("Searching "+q); startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com/search?q="+Uri.encode(q)))); }
+              void speak(String t){ if(tts!=null) tts.speak(t,0,null,null); }
+          }
+          EEOF
+      - name: Build APK
+        run: |
+          gradle wrapper --gradle-version 8.0
+          chmod +x gradlew
+          ./gradlew assembleDebug
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: GHOST-JARVIS-APK
+          path: app/build/outputs/apk/debug/*.apk
