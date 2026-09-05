@@ -1,0 +1,22 @@
+plugins {
+    id 'com.android.application'
+}
+android {
+    namespace 'com.ghostjarvis.ai'
+    compileSdk 34
+    defaultConfig {
+        applicationId "com.ghostjarvis.ai"
+        minSdk 24
+        targetSdk 34
+        versionCode 1
+        versionName "1.0-JARVIS-ONLINE"
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+}
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+}
